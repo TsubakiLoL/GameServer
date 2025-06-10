@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package game;
+
+// 消息类型枚举
+enum MessageType {
+  LOGIN_REQUEST = 0;
+  LOGIN_RESPONSE = 1;
+  ENTER_ROOM_REQUEST = 2;
+  ENTER_ROOM_RESPONSE = 3;
+  EXIT_ROOM_REQUEST = 4;
+  EXIT_ROOM_RESPONSE = 5;
+  START_GAME_REQUEST = 6;
+  START_GAME_RESPONSE = 7;
+  POSITION_UPDATE = 8;
+  STATE_CHANGE = 9;
+  PLAYER_SPAWN = 10;
+  PLAYER_DESPAWN = 11;
+  POSITION_BROADCAST = 12;
+  STATE_BROADCAST = 13;
+}
+
+// 顶层消息封装
+message GameMessage {
+  MessageType type = 1;
+  oneof content {
+    LoginRequest login_request = 2;
+    LoginResponse login_response = 3;
+    EnterRoomRequest enter_room_request = 4;
+    EnterRoomResponse enter_room_response = 5;
+    ExitRoomRequest exit_room_request = 6;
+    ExitRoomResponse exit_room_response = 7;
+    StartGameRequest start_game_request = 8;
+    StartGameResponse start_game_response = 9;
+    PositionUpdate position_update = 10;
+    StateChange state_change = 11;
+    PlayerSpawn player_spawn = 12;
+    PlayerDespawn player_despawn = 13;
+    PositionBroadcast position_broadcast = 14;
+    StateBroadcast state_broadcast = 15;
+  }
+}
+
+// 请求登录消息
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// 登录响应
+message LoginResponse {
+  string username = 1;
+  string user_id = 2;
+  string avatar = 3;
+  string bio = 4;
+}
+
+// 进入房间请求
+message EnterRoomRequest {
+  string room_id = 1;
+}
+
+// 进入房间响应
+message EnterRoomResponse {
+  string room_id = 1;
+  bool success = 2;
+}
+
+// 退出房间请求 (空消息体)
+message ExitRoomRequest {}
+
+// 退出房间响应
+message ExitRoomResponse {
+  bool success = 1;
+  string room_id = 2; // 退出成功时返回房间ID
+}
+
+// 开始游戏请求 (空消息体)
+message StartGameRequest {}
+
+// 开始游戏响应
+message StartGameResponse {
+  string room_id = 1;
+  bool success = 2;
+}
+
+// 位置同步请求
+message PositionUpdate {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+// 状态更改请求
+message StateChange {
+  string new_state = 1;
+}
+
+// 玩家生成消息 (服务端 -> 客户端)
+message PlayerSpawn {
+  string username = 1;
+  string user_id = 2;
+  string avatar = 3;
+  string bio = 4;
+}
+
+// 玩家删除消息
+message PlayerDespawn {
+  string user_id = 1;
+}
+
+// 位置广播消息 (服务端 -> 所有客户端)
+message PositionBroadcast {
+  string user_id = 1;
+  float x = 2;
+  float y = 3;
+  float z = 4;
+}
+
+// 状态广播消息 (服务端 -> 所有客户端)
+message StateBroadcast {
+  string user_id = 1;
+  string state = 2;
+}

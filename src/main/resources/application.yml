@@ -1,0 +1,22 @@
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
+  global-config:
+
+    # 全局配置
+    db-config:
+      # 数据库配置
+      id-type: auto
+
+spring:
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: org.sqlite.JDBC
+    url: jdbc:sqlite:D:/JavaProject/GameServer/src/main/resources/GameDB.db
+    username: root
+    password: root
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
