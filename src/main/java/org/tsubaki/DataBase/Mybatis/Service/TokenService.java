@@ -62,12 +62,15 @@ public class TokenService {
     }
     public boolean isTokenValid(String tokenID){
         if(!hasToken(tokenID)){
+            System.out.println("不存在Token");
             return false;
         }
         try {
             Token token = tokenMapper.selectByTokenID(tokenID);
             return token.isTokenValid();
         }catch (Exception e){
+
+            e.printStackTrace();
             return false;
         }
     }

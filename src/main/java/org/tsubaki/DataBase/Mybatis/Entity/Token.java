@@ -80,9 +80,9 @@ public class Token {
         LocalDateTime expireTime = tokenR.plusSeconds(tokenT.getSecond())
                 .plusMinutes(tokenT.getMinute())
                 .plusHours(tokenT.getHour())
-                .plusDays(tokenT.getDayOfMonth() - 1)
-                .plusMonths(tokenT.getMonthValue() - 1)
-                .plusYears(tokenT.getYear() - 1970);
+                .plusDays(tokenT.getDayOfMonth() )
+                .plusMonths(tokenT.getMonthValue())
+                .plusYears(tokenT.getYear() );
 
         // 判断当前时间是否在有效期内
         return now.isBefore(expireTime);

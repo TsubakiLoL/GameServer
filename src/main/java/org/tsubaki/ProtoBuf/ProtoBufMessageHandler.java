@@ -8,11 +8,14 @@ import org.tsubaki.DataBase.Mybatis.Service.TokenService;
 import org.tsubaki.DataBase.Mybatis.Service.UserService;
 import org.tsubaki.ProtoBuf.Event.Request.ProtoBufEventLoginRequestNormal;
 import org.tsubaki.ProtoBuf.Event.Request.ProtoBufEventLoginRequestToken;
+import org.tsubaki.ProtoBuf.Event.Response.ProtoBufEventLoginQuitResponse;
 import org.tsubaki.ProtoBuf.Event.Response.ProtoBufEventLoginResponseFailed;
 import org.tsubaki.ProtoBuf.Event.Response.ProtoBufEventLoginResponseSucceed;
 import org.tsubaki.MessageQueue.MessageCallback;
 import org.tsubaki.MessageQueue.MessageEvent;
 import org.tsubaki.MessageQueue.MessageQueue;
+import org.tsubaki.ProtoBuf.Event.User.UserEventOffline;
+import org.tsubaki.ProtoBuf.Event.User.UserEventOnline;
 import org.tsubaki.Tool.BidirectionalMap;
 import org.tsubaki.Web.Event.WebSocketEventSessionClose;
 import org.tsubaki.Web.Event.WebSocketEventSessionMessage;
@@ -46,7 +49,11 @@ public class ProtoBufMessageHandler {
             public void event_get(MessageEvent event) {
 
                 if (event instanceof WebSocketEventSessionClose eventReal) {
-
+                    String sessionID=eventReal.sessionID;
+                    if(sessionIDToUserMap.containsKey(sessionID)){
+                        MessageQueue.m.push_event(new UserEventOffline(sessionIDToUserMap.getValue(sessionID)));
+                        sessionIDToUserMap.removeByKey(sessionID);
+                    }
 
                 }
             }
@@ -61,70 +68,111 @@ public class ProtoBufMessageHandler {
         // 获取 DataBuffer
 
         try {
-            Message.GameMessage gameMessage=Message.GameMessage.parseFrom(message.getPayload());
+            MessageOuterClass.Message gameMessage= MessageOuterClass.Message.parseFrom(message.getPayload());
             switch (gameMessage.getType()) {
                 case LOGIN_REQUEST_NORMAL -> {
-                    Message.LoginRequestNormal loginRequestNormal = gameMessage.getLoginRequestNormal();
+                    MessageOuterClass.LoginRequestNormal loginRequestNormal = gameMessage.getLoginRequestNormal();
                     MessageQueue.m.push_event(new ProtoBufEventLoginRequestNormal(sessionID, loginRequestNormal.getId(), loginRequestNormal.getPassword()));
                     processLoginNormal(sessionID, loginRequestNormal);
                 }
                 case LOGIN_REQUEST_TOKEN -> {
-                    Message.LoginRequestToken loginRequestToken = gameMessage.getLoginRequestToken();
+                    MessageOuterClass.LoginRequestToken loginRequestToken = gameMessage.getLoginRequestToken();
                     MessageQueue.m.push_event(new ProtoBufEventLoginRequestToken(sessionID, loginRequestToken.getToken()));
-                    procesLoginToken(sessionID, loginRequestToken);
+                    processLoginToken(sessionID, loginRequestToken);
+                }
+                case CREATE_ROOM_REQUEST -> {
+
+
+                }
+                case ENTER_ROOM_REQUEST -> {
+
+                }
+                case KICK_ROOM_USER_REQUEST -> {
+
+                }
+                case QUIT_ROOM_REQUEST -> {
+
+                }
+                case CHANGE_ROOM_OWNER_REQUEST -> {
+
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
-
         }
 
     }
 
 
 
-    public void processLoginNormal(String sessionID, Message.LoginRequestNormal loginRequestNormal){
+    public void processLoginNormal(String sessionID, MessageOuterClass.LoginRequestNormal loginRequestNormal){
         if(loginRequestNormal==null){
-            MessageQueue.m.push_event(ProtoBufEventLoginResponseFailed.build(sessionID, Message.LoginFailedCode.INVALID_ID));
+            MessageQueue.m.push_event(ProtoBufEventLoginResponseFailed.build(sessionID, MessageOuterClass.LoginFailedCode.INVALID_ID));
             return;
         }
         String id=loginRequestNormal.getId();
         String password=loginRequestNormal.getPassword();
         if(!userService.hasUser(id)){
-            MessageQueue.m.push_event(ProtoBufEventLoginResponseFailed.build(sessionID, Message.LoginFailedCode.INVALID_ID));
+            MessageQueue.m.push_event(ProtoBufEventLoginResponseFailed.build(sessionID, MessageOuterClass.LoginFailedCode.INVALID_ID));
             return;
         }
         User user =userService.selectUserByID(id);
         if(!user.isPasswordPass(password)){
-            MessageQueue.m.push_event(ProtoBufEventLoginResponseFailed.build(sessionID, Message.LoginFailedCode.INVALID_PASSWORD));
+            MessageQueue.m.push_event(ProtoBufEventLoginResponseFailed.build(sessionID, MessageOuterClass.LoginFailedCode.INVALID_PASSWORD));
         }
-        Message.User.Builder userBuilder= Message.User.newBuilder();
-        userBuilder.setName(user.getUserName())
-                    .setHead(user.getUserHead())
-                    .setId(user.getUserID())
-                    .setIntroduction(user.getUserIntroduction());
-        Message.User userOut=userBuilder.build();
+
+        MessageOuterClass.User userOut=buildUser(user.getUserID(), user.getUserName(),user.getUserHead(),user.getUserIntroduction());
+
         String tokenID=tokenService.addNowToken(user.getUserID(), LocalDateTime.of(0,1,1,0,0));
         if(tokenID==null){
-            MessageQueue.m.push_event(ProtoBufEventLoginResponseFailed.build(sessionID, Message.LoginFailedCode.INVALID_ID));
+            MessageQueue.m.push_event(ProtoBufEventLoginResponseFailed.build(sessionID, MessageOuterClass.LoginFailedCode.INVALID_ID));
             return;
         }
         MessageQueue.m.push_event(ProtoBufEventLoginResponseSucceed.build(sessionID,userOut,tokenID));
         if(sessionIDToUserMap.containsValue(user.getUserID())){
             String beforeSessionID=sessionIDToUserMap.getKey(user.getUserID());
-
+            MessageQueue.m.push_event(ProtoBufEventLoginQuitResponse.build(beforeSessionID,"本账号异地登录"));
+            MessageQueue.m.push_event(new UserEventOffline(user.getUserID()));
         }
+
         sessionIDToUserMap.put(sessionID,user.getUserID());
+        MessageQueue.m.push_event(new UserEventOnline(user.getUserID()));
+
         return;
 
     }
-    public void procesLoginToken(String sessionID,Message.LoginRequestToken loginRequestToken){
+    public void processLoginToken(String sessionID, MessageOuterClass.LoginRequestToken loginRequestToken){
         if(loginRequestToken==null){
-            MessageQueue.m.push_event(ProtoBufEventLoginResponseFailed.build(sessionID, Message.LoginFailedCode.INVALID_ID));
+            System.out.println("无效消息");
+            MessageQueue.m.push_event(ProtoBufEventLoginResponseFailed.build(sessionID, MessageOuterClass.LoginFailedCode.INVALID_TOKEN));
             return;
         }
-
-
+        String tokenID=loginRequestToken.getToken();
+        if(!tokenService.isTokenValid(tokenID)){
+            System.out.println("token无效");
+            MessageQueue.m.push_event(ProtoBufEventLoginResponseFailed.build(sessionID, MessageOuterClass.LoginFailedCode.INVALID_TOKEN));
+            return;
+        }
+        User user=tokenService.getTokenUser(tokenID);
+        if(sessionIDToUserMap.containsValue(user.getUserID())){
+            String beforeSessionID=sessionIDToUserMap.getKey(user.getUserID());
+            MessageQueue.m.push_event(ProtoBufEventLoginQuitResponse.build(beforeSessionID,"本账号异地登录"));
+            MessageQueue.m.push_event(new UserEventOffline(user.getUserID()));
+        }
+        MessageOuterClass.User userOut=buildUser(user.getUserID(), user.getUserName(),user.getUserHead(),user.getUserIntroduction());
+        MessageQueue.m.push_event(ProtoBufEventLoginResponseSucceed.build(sessionID,userOut,tokenID));
+        sessionIDToUserMap.put(sessionID,user.getUserID());
+        MessageQueue.m.push_event(new UserEventOnline(user.getUserID()));
     }
 
+
+    MessageOuterClass.User buildUser(String userID, String userName, String userHead, String userIntroduction){
+        MessageOuterClass.User.Builder userBuilder= MessageOuterClass.User.newBuilder();
+        userBuilder.setName(userName)
+                .setHead(userHead)
+                .setId(userID)
+                .setIntroduction(userIntroduction);
+        MessageOuterClass.User userOut=userBuilder.build();
+        return userBuilder.build();
+    }
 }

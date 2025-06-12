@@ -1,25 +1,25 @@
 package org.tsubaki.ProtoBuf.Event.Response;
 
 import org.springframework.web.socket.BinaryMessage;
-import org.tsubaki.ProtoBuf.Message;
+import org.tsubaki.ProtoBuf.MessageOuterClass;
 import org.tsubaki.Web.Event.WebSocketEventSessionMessageSendRequest;
 
 public class ProtoBufEventLoginResponseSucceed extends WebSocketEventSessionMessageSendRequest {
-    Message.User user;
+    MessageOuterClass.User user;
 
     String token;
 
 
-    public ProtoBufEventLoginResponseSucceed(String sessionID, BinaryMessage message, Message.User user, String token) {
+    public ProtoBufEventLoginResponseSucceed(String sessionID, BinaryMessage message, MessageOuterClass.User user, String token) {
         super(sessionID, message);
         this.user = user;
         this.token = token;
     }
 
-    public static ProtoBufEventLoginResponseSucceed build(String sessionID, Message.User user, String token){
-        Message.GameMessage.Builder newMessageBuilder= Message.GameMessage.newBuilder();
-        newMessageBuilder.setType(Message.MessageType.LOGIN_RESPONSE_SUCCEED);
-        Message.LoginResponseSucceed.Builder responseBuilder=Message.LoginResponseSucceed.newBuilder();
+    public static ProtoBufEventLoginResponseSucceed build(String sessionID, MessageOuterClass.User user, String token){
+        MessageOuterClass.Message.Builder newMessageBuilder= MessageOuterClass.Message.newBuilder();
+        newMessageBuilder.setType(MessageOuterClass.MessageType.LOGIN_RESPONSE_SUCCEED);
+        MessageOuterClass.LoginResponseSucceed.Builder responseBuilder= MessageOuterClass.LoginResponseSucceed.newBuilder();
         responseBuilder.setToken(token);
         responseBuilder.setUser(user);
         newMessageBuilder.setLoginResponseSucceed(responseBuilder);
